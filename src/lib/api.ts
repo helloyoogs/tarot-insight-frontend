@@ -1,0 +1,100 @@
+export interface ApiConfig {
+  baseUrl: string
+  accessToken?: string
+}
+
+export type LoveSituation = 'SOME' | 'REUNION' | 'COUPLE' | 'SOLO' | 'CRUSH'
+
+export interface LoveTarotResponse {
+  themeId: number
+  themeName: string
+  cardNo: number
+  cardName: string
+  cardDescription: string
+  cardImageUrl: string
+  deckName: string
+  situation: LoveSituation
+  situationLabel: string
+  resultText: string
+}
+
+export interface ThemeTarotResponse {
+  themeId: number
+  themeName: string
+  cardNo: number
+  cardName: string
+  cardDescription: string
+  cardImageUrl: string
+  deckName: string
+  resultText: string
+}
+
+function buildHeaders(config: ApiConfig): HeadersInit {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  }
+
+  if (config.accessToken) {
+    headers.Authorization = `Bearer ${config.accessToken}`
+  }
+
+  return headers
+}
+
+async function request<T>(config: ApiConfig, path: string, init?: RequestInit): Promise<T> {
+  const url = `${config.baseUrl.replace(/\/+$/, '')}${path}`
+
+  const response = await fetch(url, {
+    ...init,
+    headers: {
+      ...buildHeaders(config),
+      ...(init?.headers ?? {}),
+    },
+  })
+
+  const text = await response.text()
+  let json: unknown
+
+  try {
+    json = text ? JSON.parse(text) : undefined
+  } catch {
+    json = { raw: text }
+  }
+
+  if (!response.ok) {
+    const message =
+      typeof (json as any)?.message === 'string'
+        ? (json as any).message
+        : `요청 실패 (HTTP ${response.status})`
+    throw new Error(message)
+  }
+
+  return json as T
+}
+
+export async function drawLoveTarot(
+  config: ApiConfig,
+  situation: LoveSituation,
+): Promise<LoveTarotResponse> {
+  return request<LoveTarotResponse>(config, '/api/tarot/themes/love', {
+    method: 'POST',
+    body: JSON.stringify({ situation }),
+  })
+}
+
+export async function drawMonthlyTarot(
+  config: ApiConfig,
+  themeId: number,
+): Promise<ThemeTarotResponse> {
+  return request<ThemeTarotResponse>(config, '/api/tarot/themes/monthly', {
+    method: 'POST',
+    body: JSON.stringify({ themeId }),
+  })
+}
+
+export async function drawDailyTarot(config: ApiConfig): Promise<ThemeTarotResponse> {
+  return request<ThemeTarotResponse>(config, '/api/tarot/themes/daily', {
+    method: 'GET',
+  })
+}
+
