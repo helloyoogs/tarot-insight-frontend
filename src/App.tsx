@@ -17,6 +17,7 @@ import {
   drawMonthlyTarot,
 } from './lib/api'
 import './App.css'
+import { ChatPanel } from './components/ChatPanel'
 
 function App() {
   const [baseUrl] = useState('http://localhost:8080')
@@ -575,6 +576,10 @@ function App() {
             </div>
           </div>
         </section>
+
+        <div className="mt-6">
+          <ChatPanel apiConfig={apiConfig} roomId="1" />
+        </div>
 
         <footer className="mt-6 text-center text-[11px] text-purple-300/70">
           연애 · 커리어 · 오늘의 운세를 하나의 화면에서 확인하는 개인 타로 대시보드입니다. 백엔드의
