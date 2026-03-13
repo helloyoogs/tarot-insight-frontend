@@ -65,6 +65,52 @@ export interface ThemeTarotResponse {
   resultText: string
 }
 
+// ===== Readers & Reservations =====
+
+export interface TarotReaderSummary {
+  id: number
+  nickname: string
+  profile: string
+  experienceYears: number
+  rating: number | null
+}
+
+export interface ReservationSummary {
+  id: number
+  userName: string
+  readerName: string
+  reservationTime: string
+  status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED'
+}
+
+export async function fetchReaders(config: ApiConfig): Promise<TarotReaderSummary[]> {
+  return request<TarotReaderSummary[]>(config, '/api/readers', {
+    method: 'GET',
+  })
+}
+
+export async function fetchReaderRanking(config: ApiConfig): Promise<string[]> {
+  return request<string[]>(config, '/api/readers/ranking', {
+    method: 'GET',
+  })
+}
+
+export async function createReservation(
+  config: ApiConfig,
+  payload: { readerId: number; reservationTime: string },
+): Promise<string> {
+  return request<string>(config, '/api/reservations', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function fetchMyReservations(config: ApiConfig): Promise<ReservationSummary[]> {
+  return request<ReservationSummary[]>(config, '/api/reservations/my', {
+    method: 'GET',
+  })
+}
+
 function buildHeaders(config: ApiConfig): HeadersInit {
   const headers: HeadersInit = {
     'Content-Type': 'application/json',

@@ -6,6 +6,12 @@ import {
   type ThemeTarotResponse,
   type LoginResult,
   login,
+  type TarotReaderSummary,
+  type ReservationSummary,
+  fetchReaders,
+  fetchReaderRanking,
+  createReservation,
+  fetchMyReservations,
   drawDailyTarot,
   drawLoveTarot,
   drawMonthlyTarot,
@@ -42,6 +48,23 @@ function App() {
   const [dailyError, setDailyError] = useState<string>()
 
   const hasToken = Boolean(apiConfig.accessToken)
+
+  const [readers, setReaders] = useState<TarotReaderSummary[]>([])
+  const [readersLoading, setReadersLoading] = useState(false)
+  const [readersError, setReadersError] = useState<string>()
+
+  const [ranking, setRanking] = useState<string[]>([])
+  const [rankingLoading, setRankingLoading] = useState(false)
+  const [rankingError, setRankingError] = useState<string>()
+
+  const [selectedReaderId, setSelectedReaderId] = useState<number | null>(null)
+  const [reservationTime, setReservationTime] = useState('')
+  const [reservationLoading, setReservationLoading] = useState(false)
+  const [reservationMessage, setReservationMessage] = useState<string>()
+
+  const [myReservations, setMyReservations] = useState<ReservationSummary[]>([])
+  const [myReservationsLoading, setMyReservationsLoading] = useState(false)
+  const [myReservationsError, setMyReservationsError] = useState<string>()
 
   const handleLogin = async () => {
     setAuthLoading(true)
@@ -98,6 +121,66 @@ function App() {
       setDailyError(e instanceof Error ? e.message : String(e))
     } finally {
       setDailyLoading(false)
+    }
+  }
+
+  const loadReaders = async () => {
+    setReadersLoading(true)
+    setReadersError(undefined)
+    try {
+      const list = await fetchReaders(apiConfig)
+      setReaders(list)
+      if (!selectedReaderId && list.length > 0) {
+        setSelectedReaderId(list[0].id)
+      }
+    } catch (e) {
+      setReadersError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setReadersLoading(false)
+    }
+  }
+
+  const loadRanking = async () => {
+    setRankingLoading(true)
+    setRankingError(undefined)
+    try {
+      const list = await fetchReaderRanking(apiConfig)
+      setRanking(list)
+    } catch (e) {
+      setRankingError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setRankingLoading(false)
+    }
+  }
+
+  const loadMyReservations = async () => {
+    setMyReservationsLoading(true)
+    setMyReservationsError(undefined)
+    try {
+      const list = await fetchMyReservations(apiConfig)
+      setMyReservations(list)
+    } catch (e) {
+      setMyReservationsError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setMyReservationsLoading(false)
+    }
+  }
+
+  const handleCreateReservation = async () => {
+    if (!selectedReaderId || !reservationTime) return
+    setReservationLoading(true)
+    setReservationMessage(undefined)
+    try {
+      const message = await createReservation(apiConfig, {
+        readerId: selectedReaderId,
+        reservationTime,
+      })
+      setReservationMessage(message)
+      await loadMyReservations()
+    } catch (e) {
+      setReservationMessage(e instanceof Error ? e.message : String(e))
+    } finally {
+      setReservationLoading(false)
     }
   }
 
@@ -330,6 +413,168 @@ function App() {
             )}
           </section>
         </main>
+
+        <section className="mt-6 rounded-3xl border border-emerald-400/40 bg-black/40 p-4 text-left shadow-[0_0_35px_rgba(80,200,170,0.6)] backdrop-blur-sm md:p-5">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold text-emerald-100">
+              실시간 상담사 랭킹 & 예약 현황
+            </h2>
+            <div className="flex gap-2 text-[11px]">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!hasToken) return
+                  void loadReaders()
+                  void loadRanking()
+                  void loadMyReservations()
+                }}
+                disabled={!hasToken || readersLoading || rankingLoading || myReservationsLoading}
+                className="rounded-full bg-emerald-400/90 px-3 py-1 text-[11px] font-semibold text-black shadow-[0_0_16px_rgba(80,220,170,0.7)] disabled:opacity-50"
+              >
+                {readersLoading || rankingLoading || myReservationsLoading
+                  ? '새로고치는 중…'
+                  : '데이터 새로고침'}
+              </button>
+            </div>
+          </div>
+
+          {!hasToken && (
+            <p className="mb-3 text-[11px] text-emerald-100/80">
+              상담사 랭킹과 예약 기능은 로그인 후 사용할 수 있습니다. 위에서 먼저 로그인해 주세요.
+            </p>
+          )}
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <div>
+              <h3 className="mb-2 text-[12px] font-semibold text-emerald-100">실시간 TOP 5</h3>
+              {rankingError && (
+                <p className="mb-1 text-[11px] text-red-200/90">랭킹 로드 실패: {rankingError}</p>
+              )}
+              <ul className="space-y-1.5 text-[11px] text-emerald-50/95">
+                {ranking.length === 0 && !rankingLoading && (
+                  <li className="text-emerald-100/70">아직 랭킹 데이터가 없습니다.</li>
+                )}
+                {ranking.map((name, index) => (
+                  <li key={name} className="flex items-center justify-between">
+                    <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/80 text-[10px] font-semibold text-black">
+                      {index + 1}
+                    </span>
+                    <span className="flex-1 truncate">{name}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="mb-2 text-[12px] font-semibold text-emerald-100">상담사 목록</h3>
+              {readersError && (
+                <p className="mb-1 text-[11px] text-red-200/90">상담사 로드 실패: {readersError}</p>
+              )}
+              <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                {readers.length === 0 && !readersLoading && (
+                  <p className="text-[11px] text-emerald-100/70">
+                    아직 활성화된 상담사가 없거나, 데이터를 불러오지 않았습니다.
+                  </p>
+                )}
+                {readers.map((reader) => (
+                  <button
+                    key={reader.id}
+                    type="button"
+                    onClick={() => setSelectedReaderId(reader.id)}
+                    className={`w-full rounded-2xl border px-3 py-2 text-left text-[11px] transition ${
+                      selectedReaderId === reader.id
+                        ? 'border-emerald-300/80 bg-emerald-900/40'
+                        : 'border-emerald-500/30 bg-black/40 hover:border-emerald-300/60'
+                    }`}
+                  >
+                    <p className="font-semibold text-emerald-50">{reader.nickname}</p>
+                    <p className="mt-0.5 text-[10px] text-emerald-100/80">
+                      경력 {reader.experienceYears}년 · 평점{' '}
+                      {reader.rating != null ? reader.rating.toFixed(1) : 'N/A'}
+                    </p>
+                    <p className="mt-0.5 line-clamp-2 text-[10px] text-emerald-100/80">
+                      {reader.profile}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h3 className="mb-2 text-[12px] font-semibold text-emerald-100">예약 생성 & 내 예약</h3>
+              <div className="space-y-2">
+                <label className="block text-[11px] text-emerald-100/90">
+                  예약할 상담사
+                  <select
+                    value={selectedReaderId ?? ''}
+                    onChange={(e) => setSelectedReaderId(Number(e.target.value) || null)}
+                    className="mt-1 w-full rounded-2xl border border-emerald-500/40 bg-black/50 px-3 py-1.5 text-[11px] outline-none ring-1 ring-transparent transition focus:border-amber-300/80 focus:ring-amber-300/40"
+                  >
+                    <option value="">상담사를 선택하세요</option>
+                    {readers.map((reader) => (
+                      <option key={reader.id} value={reader.id}>
+                        {reader.nickname} (경력 {reader.experienceYears}년)
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block text-[11px] text-emerald-100/90">
+                  예약 시간 (예: 2026-03-15 14:00)
+                  <input
+                    type="text"
+                    value={reservationTime}
+                    onChange={(e) => setReservationTime(e.target.value)}
+                    placeholder="YYYY-MM-DD HH:mm"
+                    className="mt-1 w-full rounded-2xl border border-emerald-500/40 bg-black/50 px-3 py-1.5 text-[11px] outline-none ring-1 ring-transparent transition focus:border-amber-300/80 focus:ring-amber-300/40"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={handleCreateReservation}
+                  disabled={
+                    !hasToken || reservationLoading || !selectedReaderId || !reservationTime
+                  }
+                  className="inline-flex items-center rounded-full bg-emerald-400/90 px-4 py-1.5 text-[11px] font-semibold text-black shadow-[0_0_16px_rgba(80,220,170,0.7)] disabled:opacity-50"
+                >
+                  {reservationLoading ? '예약 생성 중…' : '예약 생성'}
+                </button>
+                {reservationMessage && (
+                  <p className="text-[11px] text-emerald-100/90">{reservationMessage}</p>
+                )}
+              </div>
+
+              <div className="mt-3">
+                <p className="mb-1 text-[11px] font-semibold text-emerald-100/90">내 예약 목록</p>
+                {myReservationsError && (
+                  <p className="mb-1 text-[11px] text-red-200/90">
+                    예약 목록 로드 실패: {myReservationsError}
+                  </p>
+                )}
+                <div className="max-h-32 space-y-1.5 overflow-y-auto pr-1 text-[11px] text-emerald-50/95">
+                  {myReservations.length === 0 && !myReservationsLoading && (
+                    <p className="text-emerald-100/70">
+                      아직 생성된 예약이 없습니다. 상단에서 상담사와 시간을 선택해 첫 예약을 만들어 보세요.
+                    </p>
+                  )}
+                  {myReservations.map((r) => (
+                    <div
+                      key={r.id}
+                      className="rounded-2xl border border-emerald-500/30 bg-black/40 px-3 py-1.5"
+                    >
+                      <p className="font-semibold">
+                        #{r.id} · {r.readerName}
+                      </p>
+                      <p className="text-[10px] text-emerald-100/80">
+                        시간: {new Date(r.reservationTime).toLocaleString('ko-KR')}
+                      </p>
+                      <p className="text-[10px] text-emerald-100/80">상태: {r.status}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
 
         <footer className="mt-6 text-center text-[11px] text-purple-300/70">
           연애 · 커리어 · 오늘의 운세를 하나의 화면에서 확인하는 개인 타로 대시보드입니다. 백엔드의
