@@ -8,11 +8,13 @@ import {
   login,
   type TarotReaderSummary,
   type ReservationSummary,
+  type TarotReadingHistoryItem,
   fetchReaders,
   fetchReaderRanking,
   createReservation,
   fetchMyReservations,
   createReview,
+  fetchTarotHistory,
   drawDailyTarot,
   drawLoveTarot,
   drawMonthlyTarot,
@@ -73,6 +75,10 @@ function App() {
   const [reviewComment, setReviewComment] = useState('')
   const [reviewLoading, setReviewLoading] = useState(false)
   const [reviewMessage, setReviewMessage] = useState<string>()
+
+  const [tarotHistory, setTarotHistory] = useState<TarotReadingHistoryItem[]>([])
+  const [tarotHistoryLoading, setTarotHistoryLoading] = useState(false)
+  const [tarotHistoryError, setTarotHistoryError] = useState<string>()
 
   const handleLogin = async () => {
     setAuthLoading(true)
@@ -209,6 +215,19 @@ function App() {
       setReviewMessage(e instanceof Error ? e.message : String(e))
     } finally {
       setReviewLoading(false)
+    }
+  }
+
+  const loadTarotHistory = async () => {
+    setTarotHistoryLoading(true)
+    setTarotHistoryError(undefined)
+    try {
+      const list = await fetchTarotHistory(apiConfig)
+      setTarotHistory(list)
+    } catch (e) {
+      setTarotHistoryError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setTarotHistoryLoading(false)
     }
   }
 
@@ -656,6 +675,60 @@ function App() {
         <div className="mt-6">
           <ChatPanel apiConfig={apiConfig} roomId="1" />
         </div>
+
+        <section className="mt-6 rounded-3xl border border-purple-500/40 bg-black/40 p-4 text-left shadow-[0_0_35px_rgba(120,80,220,0.6)] backdrop-blur-sm md:p-5">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold text-purple-100">나의 타로 히스토리</h2>
+            <button
+              type="button"
+              onClick={() => {
+                if (!hasToken) return
+                void loadTarotHistory()
+              }}
+              disabled={!hasToken || tarotHistoryLoading}
+              className="rounded-full bg-purple-400/90 px-3 py-1 text-[11px] font-semibold text-black shadow-[0_0_16px_rgba(180,140,255,0.7)] disabled:opacity-50"
+            >
+              {tarotHistoryLoading ? '불러오는 중…' : '히스토리 새로고침'}
+            </button>
+          </div>
+          {!hasToken && (
+            <p className="mb-2 text-[11px] text-purple-100/80">
+              로그인 후 저장된 타로 리딩 히스토리를 확인할 수 있습니다.
+            </p>
+          )}
+          {tarotHistoryError && (
+            <p className="mb-2 text-[11px] text-red-200/90">
+              히스토리 로드 실패: {tarotHistoryError}
+            </p>
+          )}
+          <div className="max-h-60 space-y-2 overflow-y-auto pr-1 text-[11px] text-purple-50/95">
+            {tarotHistory.length === 0 && !tarotHistoryLoading && hasToken && (
+              <p className="text-purple-100/80">
+                아직 저장된 타로 리딩 기록이 없습니다. 추후 `/api/tarot/reading` 기반 기록 저장
+                화면과 연동하면, 이 타임라인에서 과거 리딩을 한눈에 볼 수 있습니다.
+              </p>
+            )}
+            {tarotHistory.map((item) => (
+              <div
+                key={item.id}
+                className="rounded-2xl border border-purple-500/40 bg-black/50 px-3 py-2"
+              >
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <p className="text-[11px] font-semibold text-purple-100">
+                    #{item.id} · {item.cardName}
+                  </p>
+                  <p className="text-[10px] text-purple-200/80">
+                    {new Date(item.createdAt).toLocaleString('ko-KR')}
+                  </p>
+                </div>
+                <p className="mb-1 line-clamp-2 text-[11px] text-purple-100/90">
+                  Q. {item.question}
+                </p>
+                <p className="line-clamp-3 text-[11px] text-purple-50/90">{item.resultText}</p>
+              </div>
+            ))}
+          </div>
+        </section>
 
         <footer className="mt-6 text-center text-[11px] text-purple-300/70">
           연애 · 커리어 · 오늘의 운세를 하나의 화면에서 확인하는 개인 타로 대시보드입니다. 백엔드의

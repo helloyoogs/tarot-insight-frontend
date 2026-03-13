@@ -65,6 +65,14 @@ export interface ThemeTarotResponse {
   resultText: string
 }
 
+export interface TarotReadingHistoryItem {
+  id: number
+  cardName: string
+  question: string
+  resultText: string
+  createdAt: string
+}
+
 // ===== Readers & Reservations =====
 
 export interface TarotReaderSummary {
@@ -124,6 +132,14 @@ export async function createReview(
   return request<string>(config, '/api/reviews', {
     method: 'POST',
     body: JSON.stringify(payload),
+  })
+}
+
+export async function fetchTarotHistory(
+  config: ApiConfig,
+): Promise<TarotReadingHistoryItem[]> {
+  return request<TarotReadingHistoryItem[]>(config, '/api/tarot/history', {
+    method: 'GET',
   })
 }
 
