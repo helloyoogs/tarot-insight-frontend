@@ -37,6 +37,12 @@ export async function signup(config: ApiConfig, payload: SignupPayload): Promise
   })
 }
 
+export async function getMe(config: ApiConfig): Promise<string> {
+  return request<string>(config, '/api/users/me', {
+    method: 'GET',
+  })
+}
+
 // ===== Tarot Theme =====
 
 export type LoveSituation = 'SOME' | 'REUNION' | 'COUPLE' | 'SOLO' | 'CRUSH'
