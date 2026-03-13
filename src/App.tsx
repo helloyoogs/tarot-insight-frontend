@@ -12,6 +12,7 @@ import {
   fetchReaderRanking,
   createReservation,
   fetchMyReservations,
+  createReview,
   drawDailyTarot,
   drawLoveTarot,
   drawMonthlyTarot,
@@ -66,6 +67,12 @@ function App() {
   const [myReservations, setMyReservations] = useState<ReservationSummary[]>([])
   const [myReservationsLoading, setMyReservationsLoading] = useState(false)
   const [myReservationsError, setMyReservationsError] = useState<string>()
+
+  const [selectedReservationId, setSelectedReservationId] = useState<number | null>(null)
+  const [reviewRating, setReviewRating] = useState(5)
+  const [reviewComment, setReviewComment] = useState('')
+  const [reviewLoading, setReviewLoading] = useState(false)
+  const [reviewMessage, setReviewMessage] = useState<string>()
 
   const handleLogin = async () => {
     setAuthLoading(true)
@@ -182,6 +189,26 @@ function App() {
       setReservationMessage(e instanceof Error ? e.message : String(e))
     } finally {
       setReservationLoading(false)
+    }
+  }
+
+  const handleCreateReview = async () => {
+    if (!selectedReservationId || !reviewComment.trim()) return
+    setReviewLoading(true)
+    setReviewMessage(undefined)
+    try {
+      const message = await createReview(apiConfig, {
+        reservationId: selectedReservationId,
+        rating: reviewRating,
+        comment: reviewComment.trim(),
+      })
+      setReviewMessage(message)
+      setReviewComment('')
+      await loadMyReservations()
+    } catch (e) {
+      setReviewMessage(e instanceof Error ? e.message : String(e))
+    } finally {
+      setReviewLoading(false)
     }
   }
 
@@ -545,7 +572,9 @@ function App() {
               </div>
 
               <div className="mt-3">
-                <p className="mb-1 text-[11px] font-semibold text-emerald-100/90">내 예약 목록</p>
+                <p className="mb-1 text-[11px] font-semibold text-emerald-100/90">
+                  내 예약 목록 & 리뷰 대상 선택
+                </p>
                 {myReservationsError && (
                   <p className="mb-1 text-[11px] text-red-200/90">
                     예약 목록 로드 실패: {myReservationsError}
@@ -560,7 +589,12 @@ function App() {
                   {myReservations.map((r) => (
                     <div
                       key={r.id}
-                      className="rounded-2xl border border-emerald-500/30 bg-black/40 px-3 py-1.5"
+                      className={`cursor-pointer rounded-2xl border px-3 py-1.5 ${
+                        selectedReservationId === r.id
+                          ? 'border-emerald-300/80 bg-emerald-900/40'
+                          : 'border-emerald-500/30 bg-black/40 hover:border-emerald-300/60'
+                      }`}
+                      onClick={() => setSelectedReservationId(r.id)}
                     >
                       <p className="font-semibold">
                         #{r.id} · {r.readerName}
@@ -572,6 +606,48 @@ function App() {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              <div className="mt-3 border-t border-emerald-500/30 pt-2">
+                <p className="mb-1 text-[11px] font-semibold text-emerald-100/90">
+                  리뷰 작성 (완료된 상담 대상)
+                </p>
+                <div className="mb-2 flex items-center gap-2 text-[11px]">
+                  <span className="text-emerald-100/80">평점</span>
+                  <select
+                    value={reviewRating}
+                    onChange={(e) => setReviewRating(Number(e.target.value))}
+                    className="rounded-full border border-emerald-500/40 bg-black/50 px-2 py-1 text-[11px] outline-none ring-1 ring-transparent transition focus:border-amber-300/80 focus:ring-amber-300/40"
+                  >
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="text-emerald-100/70">/ 5</span>
+                </div>
+                <textarea
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder="상담이 어떻게 도움이 되었는지 최대 500자까지 적어주세요."
+                  maxLength={500}
+                  rows={3}
+                  className="w-full rounded-2xl border border-emerald-500/40 bg-black/50 px-3 py-2 text-[11px] outline-none ring-1 ring-transparent transition focus:border-amber-300/80 focus:ring-amber-300/40"
+                />
+                <button
+                  type="button"
+                  onClick={handleCreateReview}
+                  disabled={
+                    !hasToken || reviewLoading || !selectedReservationId || !reviewComment.trim()
+                  }
+                  className="mt-2 inline-flex items-center rounded-full bg-emerald-400/90 px-4 py-1.5 text-[11px] font-semibold text-black shadow-[0_0_16px_rgba(80,220,170,0.7)] disabled:opacity-50"
+                >
+                  {reviewLoading ? '리뷰 저장 중…' : '리뷰 등록'}
+                </button>
+                {reviewMessage && (
+                  <p className="mt-1 text-[11px] text-emerald-100/90">{reviewMessage}</p>
+                )}
               </div>
             </div>
           </div>

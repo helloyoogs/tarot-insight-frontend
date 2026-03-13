@@ -83,6 +83,12 @@ export interface ReservationSummary {
   status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED'
 }
 
+export interface ReviewRequestPayload {
+  reservationId: number
+  rating: number
+  comment: string
+}
+
 export async function fetchReaders(config: ApiConfig): Promise<TarotReaderSummary[]> {
   return request<TarotReaderSummary[]>(config, '/api/readers', {
     method: 'GET',
@@ -108,6 +114,16 @@ export async function createReservation(
 export async function fetchMyReservations(config: ApiConfig): Promise<ReservationSummary[]> {
   return request<ReservationSummary[]>(config, '/api/reservations/my', {
     method: 'GET',
+  })
+}
+
+export async function createReview(
+  config: ApiConfig,
+  payload: ReviewRequestPayload,
+): Promise<string> {
+  return request<string>(config, '/api/reviews', {
+    method: 'POST',
+    body: JSON.stringify(payload),
   })
 }
 
