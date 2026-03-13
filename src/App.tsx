@@ -4,6 +4,8 @@ import {
   type LoveSituation,
   type LoveTarotResponse,
   type ThemeTarotResponse,
+  type LoginResult,
+  login,
   drawDailyTarot,
   drawLoveTarot,
   drawMonthlyTarot,
@@ -12,11 +14,17 @@ import './App.css'
 
 function App() {
   const [baseUrl] = useState('http://localhost:8080')
-  const [accessToken, setAccessToken] = useState('')
+  const [accessToken, setAccessToken] = useState<string | null>(
+    () => window.localStorage.getItem('accessToken'),
+  )
+  const [authLoading, setAuthLoading] = useState(false)
+  const [authError, setAuthError] = useState<string>()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
 
   const apiConfig: ApiConfig = {
     baseUrl,
-    accessToken: accessToken.trim() || undefined,
+    accessToken: accessToken?.trim() || undefined,
   }
 
   const [loveSituation, setLoveSituation] = useState<LoveSituation>('SOME')
@@ -32,6 +40,27 @@ function App() {
   const [dailyResult, setDailyResult] = useState<ThemeTarotResponse>()
   const [dailyLoading, setDailyLoading] = useState(false)
   const [dailyError, setDailyError] = useState<string>()
+
+  const hasToken = Boolean(apiConfig.accessToken)
+
+  const handleLogin = async () => {
+    setAuthLoading(true)
+    setAuthError(undefined)
+    try {
+      const res: LoginResult = await login(apiConfig, { email, password })
+      setAccessToken(res.accessToken)
+      window.localStorage.setItem('accessToken', res.accessToken)
+    } catch (e) {
+      setAuthError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const handleLogout = () => {
+    setAccessToken(null)
+    window.localStorage.removeItem('accessToken')
+  }
 
   const handleLove = async () => {
     setLoveLoading(true)
@@ -91,8 +120,8 @@ function App() {
         </header>
 
         <section className="mb-5 rounded-3xl border border-purple-500/40 bg-black/40 p-4 text-left shadow-[0_0_35px_rgba(90,40,180,0.6)] backdrop-blur-sm md:p-5">
-          <h2 className="mb-3 text-sm font-semibold text-amber-100">접속 정보</h2>
-          <div className="flex flex-col gap-3 md:flex-row">
+          <h2 className="mb-3 text-sm font-semibold text-amber-100">인증 & 접속 정보</h2>
+          <div className="flex flex-col gap-4 md:flex-row">
             <div className="flex-1">
               <p className="block text-xs font-medium text-purple-100/90">
                 백엔드 Base URL
@@ -101,24 +130,64 @@ function App() {
                 </span>
               </p>
               <p className="mt-1 text-[10px] text-purple-200/80">
-                환경에 맞게 `baseUrl` 을 조정해 사용합니다. (개발 환경: http://localhost:8080)
+                환경에 맞게 `baseUrl` 을 조정해 사용합니다. (기본값: http://localhost:8080)
+              </p>
+              <p className="mt-2 text-[10px] text-purple-200/80">
+                백엔드는 JWT 기반 보호 API이므로, 아래에서 로그인 후 발급받은 액세스 토큰을 자동으로
+                사용합니다.
               </p>
             </div>
             <div className="flex-1">
-              <label className="block text-xs font-medium text-purple-100/90">
-                JWT Access Token (USER)
+              <div className="flex items-center justify-between text-xs font-medium text-purple-100/90">
+                <span>로그인 (USER)</span>
+                <span className="text-[10px] text-purple-300/80">
+                  /api/auth/login · 토큰 localStorage 저장
+                </span>
+              </div>
+              <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
                 <input
-                  type="text"
-                  value={accessToken}
-                  onChange={(e) => setAccessToken(e.target.value)}
-                  placeholder="Bearer 없이 토큰만 입력"
-                  className="mt-1 w-full rounded-2xl border border-purple-500/40 bg-black/50 px-3 py-2 text-xs outline-none ring-1 ring-transparent transition focus:border-amber-300/80 focus:ring-amber-300/40"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="이메일"
+                  className="rounded-2xl border border-purple-500/40 bg-black/50 px-3 py-2 text-xs outline-none ring-1 ring-transparent transition focus:border-amber-300/80 focus:ring-amber-300/40"
                 />
-              </label>
-              <p className="mt-1 text-[10px] text-purple-200/80">
-                `/api/auth/login` 으로 USER 로그인 후 받은 accessToken 그대로 입력하면, 아래 모든 카드가
-                인증된 사용자 기준으로 동작합니다.
-              </p>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="비밀번호"
+                  className="rounded-2xl border border-purple-500/40 bg-black/50 px-3 py-2 text-xs outline-none ring-1 ring-transparent transition focus:border-amber-300/80 focus:ring-amber-300/40"
+                />
+              </div>
+              <div className="mt-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleLogin}
+                  disabled={authLoading || !email || !password}
+                  className="inline-flex items-center rounded-full bg-gradient-to-r from-amber-300 via-fuchsia-300 to-purple-300 px-4 py-1.5 text-[11px] font-semibold text-black shadow-[0_0_16px_rgba(245,200,160,0.7)] disabled:opacity-60"
+                >
+                  {authLoading ? '로그인 중…' : '로그인'}
+                </button>
+                {accessToken && (
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="inline-flex items-center rounded-full border border-purple-400/60 px-3 py-1.5 text-[11px] font-semibold text-purple-100 hover:bg-purple-900/50"
+                  >
+                    로그아웃
+                  </button>
+                )}
+              </div>
+              {authError && (
+                <p className="mt-2 text-[11px] text-red-200/90">로그인 실패: {authError}</p>
+              )}
+              {accessToken && !authError && (
+                <p className="mt-1 text-[10px] text-emerald-200/90">
+                  로그인 완료. 액세스 토큰이 localStorage에 저장되어, 아래 모든 카드 호출에 자동으로
+                  사용됩니다.
+                </p>
+              )}
             </div>
           </div>
         </section>
@@ -147,7 +216,7 @@ function App() {
             <button
               type="button"
               onClick={handleLove}
-              disabled={loveLoading || !accessToken.trim()}
+              disabled={loveLoading || !hasToken}
               className="mb-3 inline-flex items-center justify-center rounded-full bg-gradient-to-r from-amber-300 via-fuchsia-300 to-pink-300 px-4 py-2 text-[11px] font-semibold text-black shadow-[0_0_20px_rgba(245,200,160,0.7)] disabled:opacity-60"
             >
               {loveLoading ? '연애운 뽑는 중…' : '연애운 뽑기'}
@@ -190,7 +259,7 @@ function App() {
             <button
               type="button"
               onClick={handleCareer}
-              disabled={careerLoading || !accessToken.trim()}
+              disabled={careerLoading || !hasToken}
               className="mb-3 inline-flex items-center justify-center rounded-full bg-gradient-to-r from-amber-300 via-fuchsia-300 to-purple-300 px-4 py-2 text-[11px] font-semibold text-black shadow-[0_0_20px_rgba(245,200,160,0.7)] disabled:opacity-60"
             >
               {careerLoading ? '커리어 운세 뽑는 중…' : '이번 달 커리어 운세 뽑기'}
@@ -230,7 +299,7 @@ function App() {
             <button
               type="button"
               onClick={handleDaily}
-              disabled={dailyLoading || !accessToken.trim()}
+              disabled={dailyLoading || !hasToken}
               className="mb-3 inline-flex items-center justify-center rounded-full bg-gradient-to-r from-amber-300 via-fuchsia-300 to-purple-300 px-4 py-2 text-[11px] font-semibold text-black shadow-[0_0_20px_rgba(200,180,255,0.7)] disabled:opacity-60"
             >
               {dailyLoading ? '오늘의 운세 뽑는 중…' : '오늘의 운세 뽑기'}

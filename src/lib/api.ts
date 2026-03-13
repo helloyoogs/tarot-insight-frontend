@@ -3,6 +3,42 @@ export interface ApiConfig {
   accessToken?: string
 }
 
+// ===== Auth =====
+
+export interface LoginPayload {
+  email: string
+  password: string
+}
+
+export interface LoginResult {
+  accessToken: string
+  refreshToken: string
+}
+
+export interface SignupPayload {
+  email: string
+  password: string
+  nickname: string
+  role?: 'USER' | 'READER'
+}
+
+export async function login(config: ApiConfig, payload: LoginPayload): Promise<LoginResult> {
+  return request<LoginResult>(config, '/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function signup(config: ApiConfig, payload: SignupPayload): Promise<string> {
+  // 백엔드 응답은 단순 메시지(String) 이므로 제네릭을 string 으로 설정
+  return request<string>(config, '/api/auth/signup', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+// ===== Tarot Theme =====
+
 export type LoveSituation = 'SOME' | 'REUNION' | 'COUPLE' | 'SOLO' | 'CRUSH'
 
 export interface LoveTarotResponse {
