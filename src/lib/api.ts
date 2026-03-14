@@ -131,6 +131,15 @@ export async function fetchMyReservations(config: ApiConfig): Promise<Reservatio
   })
 }
 
+export async function cancelReservation(
+  config: ApiConfig,
+  reservationId: number,
+): Promise<string> {
+  return request<string>(config, `/api/reservations/${reservationId}/cancel`, {
+    method: 'PATCH',
+  })
+}
+
 export async function createReview(
   config: ApiConfig,
   payload: ReviewRequestPayload,
