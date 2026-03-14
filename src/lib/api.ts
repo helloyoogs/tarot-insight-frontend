@@ -43,6 +43,16 @@ export async function getMe(config: ApiConfig): Promise<string> {
   })
 }
 
+export async function reissue(
+  config: ApiConfig,
+  refreshToken: string,
+): Promise<LoginResult> {
+  return request<LoginResult>(config, '/api/auth/reissue', {
+    method: 'POST',
+    body: JSON.stringify({ refreshToken }),
+  })
+}
+
 // ===== Tarot Theme =====
 
 export type LoveSituation = 'SOME' | 'REUNION' | 'COUPLE' | 'SOLO' | 'CRUSH'
@@ -107,6 +117,28 @@ export async function fetchReaders(config: ApiConfig): Promise<TarotReaderSummar
   return request<TarotReaderSummary[]>(config, '/api/readers', {
     method: 'GET',
   })
+}
+
+export interface ReaderSearchParams {
+  nickname?: string
+  minExperience?: number
+  minRating?: number
+}
+
+export async function searchReaders(
+  config: ApiConfig,
+  params: ReaderSearchParams,
+): Promise<TarotReaderSummary[]> {
+  const search = new URLSearchParams()
+  if (params.nickname?.trim()) search.set('nickname', params.nickname.trim())
+  if (params.minExperience != null) search.set('minExperience', String(params.minExperience))
+  if (params.minRating != null) search.set('minRating', String(params.minRating))
+  const query = search.toString()
+  return request<TarotReaderSummary[]>(
+    config,
+    `/api/readers/search${query ? `?${query}` : ''}`,
+    { method: 'GET' },
+  )
 }
 
 export async function fetchReaderRanking(config: ApiConfig): Promise<string[]> {
@@ -195,7 +227,9 @@ async function request<T>(config: ApiConfig, path: string, init?: RequestInit): 
       typeof (json as any)?.message === 'string'
         ? (json as any).message
         : `요청 실패 (HTTP ${response.status})`
-    throw new Error(message)
+    const err = new Error(message) as Error & { status?: number }
+    err.status = response.status
+    throw err
   }
 
   // 백엔드가 JSON이 아닌 평문(plain text)을 반환한 경우: { raw: text } 대신 문자열 반환

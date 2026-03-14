@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -15,7 +16,37 @@ export function Layout() {
     hasToken,
     login,
     logout,
+    signup,
   } = useAuth()
+  const [showSignup, setShowSignup] = useState(false)
+  const [signupEmail, setSignupEmail] = useState('')
+  const [signupPassword, setSignupPassword] = useState('')
+  const [signupNickname, setSignupNickname] = useState('')
+  const [signupRole, setSignupRole] = useState<'USER' | 'READER'>('USER')
+  const [signupLoading, setSignupLoading] = useState(false)
+  const [signupMessage, setSignupMessage] = useState<string | null>(null)
+  const handleSignup = async () => {
+    if (!signupEmail.trim() || !signupPassword.trim() || !signupNickname.trim()) return
+    setSignupLoading(true)
+    setSignupMessage(null)
+    try {
+      const msg = await signup({
+        email: signupEmail.trim(),
+        password: signupPassword.trim(),
+        nickname: signupNickname.trim(),
+        role: signupRole,
+      })
+      setSignupMessage(msg ?? '회원가입이 완료되었습니다.')
+      setShowSignup(false)
+      setSignupEmail('')
+      setSignupPassword('')
+      setSignupNickname('')
+    } catch (e) {
+      setSignupMessage(e instanceof Error ? e.message : String(e))
+    } finally {
+      setSignupLoading(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-black via-purple-950 to-black text-purple-50">
@@ -60,28 +91,91 @@ export function Layout() {
             <span className="hidden text-[10px] text-purple-300/70 sm:inline">{baseUrl}</span>
             {!hasToken ? (
               <>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="이메일"
-                  className="w-32 rounded-full border border-purple-500/40 bg-black/50 px-2.5 py-1.5 text-[11px] outline-none focus:border-amber-300/60"
-                />
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="비밀번호"
-                  className="w-28 rounded-full border border-purple-500/40 bg-black/50 px-2.5 py-1.5 text-[11px] outline-none focus:border-amber-300/60"
-                />
-                <button
-                  type="button"
-                  onClick={() => void login()}
-                  disabled={authLoading || !email || !password}
-                  className="rounded-full bg-gradient-to-r from-amber-300/90 to-purple-300/90 px-3 py-1.5 text-[11px] font-semibold text-black disabled:opacity-50"
-                >
-                  {authLoading ? '로그인 중…' : '로그인'}
-                </button>
+                {!showSignup ? (
+                  <>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="이메일"
+                      className="w-32 rounded-full border border-purple-500/40 bg-black/50 px-2.5 py-1.5 text-[11px] outline-none focus:border-amber-300/60"
+                    />
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="비밀번호"
+                      className="w-28 rounded-full border border-purple-500/40 bg-black/50 px-2.5 py-1.5 text-[11px] outline-none focus:border-amber-300/60"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void login()}
+                      disabled={authLoading || !email || !password}
+                      className="rounded-full bg-gradient-to-r from-amber-300/90 to-purple-300/90 px-3 py-1.5 text-[11px] font-semibold text-black disabled:opacity-50"
+                    >
+                      {authLoading ? '로그인 중…' : '로그인'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowSignup(true)}
+                      className="rounded-full border border-purple-400/50 px-2.5 py-1.5 text-[11px] font-medium text-purple-100 hover:bg-purple-900/50"
+                    >
+                      회원가입
+                    </button>
+                  </>
+                ) : (
+                  <div className="flex flex-wrap items-end gap-2 rounded-2xl border border-purple-500/30 bg-purple-950/40 px-3 py-2">
+                    <input
+                      type="email"
+                      value={signupEmail}
+                      onChange={(e) => setSignupEmail(e.target.value)}
+                      placeholder="이메일"
+                      className="w-28 rounded-full border border-purple-500/40 bg-black/50 px-2 py-1 text-[11px] outline-none focus:border-amber-300/60"
+                    />
+                    <input
+                      type="password"
+                      value={signupPassword}
+                      onChange={(e) => setSignupPassword(e.target.value)}
+                      placeholder="비밀번호"
+                      className="w-24 rounded-full border border-purple-500/40 bg-black/50 px-2 py-1 text-[11px] outline-none focus:border-amber-300/60"
+                    />
+                    <input
+                      type="text"
+                      value={signupNickname}
+                      onChange={(e) => setSignupNickname(e.target.value)}
+                      placeholder="닉네임"
+                      className="w-24 rounded-full border border-purple-500/40 bg-black/50 px-2 py-1 text-[11px] outline-none focus:border-amber-300/60"
+                    />
+                    <select
+                      value={signupRole}
+                      onChange={(e) => setSignupRole(e.target.value as 'USER' | 'READER')}
+                      className="rounded-full border border-purple-500/40 bg-black/50 px-2 py-1 text-[11px] outline-none focus:border-amber-300/60"
+                    >
+                      <option value="USER">일반회원</option>
+                      <option value="READER">상담사</option>
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => void handleSignup()}
+                      disabled={signupLoading || !signupEmail.trim() || !signupPassword.trim() || !signupNickname.trim()}
+                      className="rounded-full bg-purple-400/90 px-2.5 py-1 text-[11px] font-semibold text-black disabled:opacity-50"
+                    >
+                      {signupLoading ? '가입 중…' : '가입'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowSignup(false); setSignupMessage(null); }}
+                      className="rounded-full border border-purple-400/50 px-2 py-1 text-[11px] text-purple-100 hover:bg-purple-900/50"
+                    >
+                      취소
+                    </button>
+                    {signupMessage && (
+                      <span className={`w-full text-[11px] ${signupMessage.startsWith('회원') ? 'text-emerald-200/90' : 'text-red-200/90'}`}>
+                        {signupMessage}
+                      </span>
+                    )}
+                  </div>
+                )}
               </>
             ) : (
               <>

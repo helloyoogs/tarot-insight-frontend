@@ -8,6 +8,7 @@ import {
   fetchMyReservations,
   fetchReaderRanking,
   fetchReaders,
+  searchReaders,
 } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 import { ChatPanel } from '../components/ChatPanel'
@@ -18,6 +19,10 @@ export default function ConsultationPage() {
   const [readers, setReaders] = useState<TarotReaderSummary[]>([])
   const [readersLoading, setReadersLoading] = useState(false)
   const [readersError, setReadersError] = useState<string>()
+  const [searchNickname, setSearchNickname] = useState('')
+  const [searchMinExperience, setSearchMinExperience] = useState<number | ''>('')
+  const [searchMinRating, setSearchMinRating] = useState<number | ''>('')
+  const [isSearchResult, setIsSearchResult] = useState(false)
 
   const [ranking, setRanking] = useState<string[]>([])
   const [rankingLoading, setRankingLoading] = useState(false)
@@ -50,10 +55,31 @@ export default function ConsultationPage() {
   const loadReaders = async () => {
     setReadersLoading(true)
     setReadersError(undefined)
+    setIsSearchResult(false)
     try {
       const list = await fetchReaders(apiConfig)
       setReaders(list)
       if (!selectedReaderId && list.length > 0) setSelectedReaderId(list[0].id)
+    } catch (e) {
+      setReadersError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setReadersLoading(false)
+    }
+  }
+
+  const handleSearchReaders = async () => {
+    setReadersLoading(true)
+    setReadersError(undefined)
+    try {
+      const list = await searchReaders(apiConfig, {
+        nickname: searchNickname.trim() || undefined,
+        minExperience: searchMinExperience === '' ? undefined : Number(searchMinExperience),
+        minRating: searchMinRating === '' ? undefined : Number(searchMinRating),
+      })
+      setReaders(list)
+      setIsSearchResult(true)
+      if (!selectedReaderId && list.length > 0) setSelectedReaderId(list[0].id)
+      else if (list.length === 0) setSelectedReaderId(null)
     } catch (e) {
       setReadersError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -200,14 +226,59 @@ export default function ConsultationPage() {
           </div>
 
           <div>
-            <h3 className="mb-2 text-[12px] font-semibold text-emerald-100">상담사 목록</h3>
+            <h3 className="mb-2 text-[12px] font-semibold text-emerald-100">
+              상담사 목록 {isSearchResult && <span className="text-[10px] text-emerald-200/80">(검색 결과)</span>}
+            </h3>
+            <div className="mb-2 flex flex-wrap items-center gap-1.5 text-[11px]">
+              <input
+                type="text"
+                value={searchNickname}
+                onChange={(e) => setSearchNickname(e.target.value)}
+                placeholder="닉네임"
+                className="w-20 rounded-full border border-emerald-500/40 bg-black/50 px-2 py-1 text-[11px] outline-none focus:border-amber-300/60"
+              />
+              <input
+                type="number"
+                min={0}
+                value={searchMinExperience === '' ? '' : searchMinExperience}
+                onChange={(e) => setSearchMinExperience(e.target.value === '' ? '' : Number(e.target.value))}
+                placeholder="최소경력(년)"
+                className="w-16 rounded-full border border-emerald-500/40 bg-black/50 px-2 py-1 text-[11px] outline-none focus:border-amber-300/60"
+              />
+              <input
+                type="number"
+                min={0}
+                max={5}
+                step={0.1}
+                value={searchMinRating === '' ? '' : searchMinRating}
+                onChange={(e) => setSearchMinRating(e.target.value === '' ? '' : Number(e.target.value))}
+                placeholder="최소평점"
+                className="w-14 rounded-full border border-emerald-500/40 bg-black/50 px-2 py-1 text-[11px] outline-none focus:border-amber-300/60"
+              />
+              <button
+                type="button"
+                onClick={() => void handleSearchReaders()}
+                disabled={!hasToken || readersLoading}
+                className="rounded-full bg-emerald-500/80 px-2 py-1 text-[10px] font-semibold text-black disabled:opacity-50"
+              >
+                검색
+              </button>
+              <button
+                type="button"
+                onClick={() => void loadReaders()}
+                disabled={!hasToken || readersLoading}
+                className="rounded-full border border-emerald-400/50 px-2 py-1 text-[10px] text-emerald-100 hover:bg-emerald-900/40 disabled:opacity-50"
+              >
+                전체 목록
+              </button>
+            </div>
             {readersError && (
               <p className="mb-1 text-[11px] text-red-200/90">상담사 로드 실패: {readersError}</p>
             )}
             <div className="max-h-52 space-y-2 overflow-y-auto pr-1">
               {readers.length === 0 && !readersLoading && (
                 <p className="text-[11px] text-emerald-100/70">
-                  아직 활성화된 상담사가 없거나, 데이터를 불러오지 않았습니다.
+                  {isSearchResult ? '검색 조건에 맞는 상담사가 없습니다.' : '아직 활성화된 상담사가 없거나, 데이터를 불러오지 않았습니다.'}
                 </p>
               )}
               {readers.map((reader) => (
