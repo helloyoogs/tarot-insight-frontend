@@ -198,6 +198,17 @@ async function request<T>(config: ApiConfig, path: string, init?: RequestInit): 
     throw new Error(message)
   }
 
+  // 백엔드가 JSON이 아닌 평문(plain text)을 반환한 경우: { raw: text } 대신 문자열 반환
+  if (
+    json != null &&
+    typeof json === 'object' &&
+    'raw' in json &&
+    Object.keys(json).length === 1 &&
+    typeof (json as { raw: string }).raw === 'string'
+  ) {
+    return (json as { raw: string }).raw as T
+  }
+
   return json as T
 }
 
