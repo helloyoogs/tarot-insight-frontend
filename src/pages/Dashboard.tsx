@@ -10,6 +10,8 @@ import {
   drawMonthlyTarot,
 } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
+import { MONTHLY_THEMES } from '../constants/tarotThemes'
+import { ThemeTarotCard } from '../components/ThemeTarotCard'
 
 export default function Dashboard() {
   const { apiConfig, hasToken } = useAuth()
@@ -19,10 +21,9 @@ export default function Dashboard() {
   const [loveLoading, setLoveLoading] = useState(false)
   const [loveError, setLoveError] = useState<string>()
 
-  const [careerThemeId] = useState<number>(2)
-  const [careerResult, setCareerResult] = useState<ThemeTarotResponse>()
-  const [careerLoading, setCareerLoading] = useState(false)
-  const [careerError, setCareerError] = useState<string>()
+  const [monthlyResults, setMonthlyResults] = useState<Partial<Record<number, ThemeTarotResponse>>>({})
+  const [monthlyLoading, setMonthlyLoading] = useState<Partial<Record<number, boolean>>>({})
+  const [monthlyError, setMonthlyError] = useState<Partial<Record<number, string>>>({})
 
   const [dailyResult, setDailyResult] = useState<ThemeTarotResponse>()
   const [dailyLoading, setDailyLoading] = useState(false)
@@ -45,16 +46,16 @@ export default function Dashboard() {
     }
   }
 
-  const handleCareer = async () => {
-    setCareerLoading(true)
-    setCareerError(undefined)
+  const handleMonthly = async (themeId: number) => {
+    setMonthlyLoading((prev) => ({ ...prev, [themeId]: true }))
+    setMonthlyError((prev) => ({ ...prev, [themeId]: undefined }))
     try {
-      const res = await drawMonthlyTarot(apiConfig, careerThemeId)
-      setCareerResult(res)
+      const res = await drawMonthlyTarot(apiConfig, themeId)
+      setMonthlyResults((prev) => ({ ...prev, [themeId]: res }))
     } catch (e) {
-      setCareerError(e instanceof Error ? e.message : String(e))
+      setMonthlyError((prev) => ({ ...prev, [themeId]: e instanceof Error ? e.message : String(e) }))
     } finally {
-      setCareerLoading(false)
+      setMonthlyLoading((prev) => ({ ...prev, [themeId]: false }))
     }
   }
 
@@ -91,12 +92,13 @@ export default function Dashboard() {
           오늘, 당신의 하루를 위한 테마별 타로
         </h1>
         <p className="mx-auto max-w-2xl text-xs text-purple-100/80">
-          연애 · 커리어 · 전체 운세까지 한 번에 확인할 수 있는 개인 타로 대시보드입니다.
+          연애 · 직업 · 성공 · 학업 · 재물 · 건강 · 관계 · 오늘의 운세까지, 백엔드 테마 API와 1:1로
+          연동된 개인 타로 대시보드입니다.
         </p>
       </header>
 
-      <main className="grid gap-4 md:grid-cols-3">
-        {/* 연애운 카드 */}
+      <main className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {/* 연애운 카드 (테마 1, 전용 API) */}
         <section className="flex flex-col rounded-3xl border border-pink-400/40 bg-gradient-to-br from-pink-900/60 via-black/70 to-purple-950/70 p-4 shadow-[0_0_35px_rgba(255,120,180,0.6)] backdrop-blur-sm">
           <h2 className="mb-2 text-sm font-semibold text-pink-100">연애운 타로</h2>
           <p className="mb-3 text-[11px] text-pink-50/80">
@@ -153,51 +155,26 @@ export default function Dashboard() {
           )}
         </section>
 
-        {/* 커리어/월간 테마 카드 */}
-        <section className="flex flex-col rounded-3xl border border-amber-400/40 bg-gradient-to-br from-amber-900/60 via-black/70 to-purple-950/70 p-4 shadow-[0_0_35px_rgba(245,200,120,0.6)] backdrop-blur-sm">
-          <h2 className="mb-2 text-sm font-semibold text-amber-100">이번 달 커리어 운세</h2>
-          <p className="mb-3 text-[11px] text-amber-50/85">
-            테마 ID 2(취업/이직운)를 사용해서, 이번 달 커리어 흐름을 한 번에 확인해 보세요.
-          </p>
-          <button
-            type="button"
-            onClick={handleCareer}
-            disabled={careerLoading || !hasToken}
-            className="mb-3 inline-flex items-center justify-center rounded-full bg-gradient-to-r from-amber-300 via-fuchsia-300 to-purple-300 px-4 py-2 text-[11px] font-semibold text-black shadow-[0_0_20px_rgba(245,200,160,0.7)] disabled:opacity-60"
-          >
-            {careerLoading ? '커리어 운세 뽑는 중…' : '이번 달 커리어 운세 뽑기'}
-          </button>
-          {careerError && (
-            <p className="mb-2 text-[11px] text-red-200/90">에러: {careerError}</p>
-          )}
-          {careerResult ? (
-            <div className="mt-auto space-y-2 rounded-2xl border border-amber-300/40 bg-black/40 p-3">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-amber-200/90">
-                {careerResult.themeName}
-              </p>
-              <p className="text-sm font-semibold text-amber-50">
-                {careerResult.cardName}
-                <span className="ml-1 text-[10px] text-amber-200/80">
-                  {careerResult.cardNo}번 · {careerResult.deckName}
-                </span>
-              </p>
-              <p className="text-[11px] text-amber-100/90">{careerResult.cardDescription}</p>
-              <p className="mt-2 whitespace-pre-wrap text-[11px] leading-relaxed text-amber-50/95">
-                {careerResult.resultText}
-              </p>
-            </div>
-          ) : (
-            <p className="mt-auto text-[11px] text-amber-100/80">
-              버튼을 누르면, 취업/이직을 포함한 이번 달 커리어 흐름을 보여주는 카드가 나타납니다.
-            </p>
-          )}
-        </section>
+        {/* 이번 달 테마별 운세 (themeId 2~7, POST /themes/monthly) */}
+        {MONTHLY_THEMES.map((theme, index) => (
+          <ThemeTarotCard
+            key={theme.id}
+            themeName={theme.name}
+            themeDescription={theme.description}
+            result={monthlyResults[theme.id]}
+            loading={monthlyLoading[theme.id] ?? false}
+            error={monthlyError[theme.id]}
+            disabled={!hasToken}
+            onDraw={() => void handleMonthly(theme.id)}
+            styleIndex={index}
+          />
+        ))}
 
-        {/* 오늘의 운세 카드 */}
+        {/* 오늘의 운세 (테마 8, GET /themes/daily) */}
         <section className="flex flex-col rounded-3xl border border-purple-400/40 bg-gradient-to-br from-purple-900/60 via-black/70 to-slate-950/70 p-4 shadow-[0_0_35px_rgba(140,120,255,0.6)] backdrop-blur-sm">
           <h2 className="mb-2 text-sm font-semibold text-purple-100">오늘의 전체 운세</h2>
           <p className="mb-3 text-[11px] text-purple-50/85">
-            themeId = 8 로 고정된 오늘의 운세 테마에서, 오늘 하루를 상징하는 카드를 한 장 뽑습니다.
+            오늘 하루를 상징하는 카드를 한 장 뽑습니다. (테마 ID 8)
           </p>
           <button
             type="button"
